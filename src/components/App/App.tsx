@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDebounce } from "../../hooks/useDebounce";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import SearchBox from "../SearchBox/SearchBox";
 import NoteList from "../NoteList/NoteList";
@@ -8,7 +8,7 @@ import Pagination from "../Pagination/Pagination";
 import Modal from "../Modal/Modal";
 import NoteForm from "../NoteForm/NoteForm";
 
-import { fetchNotes, deleteNote } from "../../services/noteService";
+import { fetchNotes } from "../../services/noteService";
 import css from "./App.module.css";
 
 export default function App() {
@@ -18,25 +18,11 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const perPage = 12;
 
-  const queryClient = useQueryClient();
-
   const { data, isLoading, isError } = useQuery({
     queryKey: ["notes", currentPage, debouncedSearch],
     queryFn: () => fetchNotes(currentPage, perPage, debouncedSearch),
+    placeholderData: (previousData) => previousData,
   });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteNote(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["notes", currentPage, debouncedSearch],
-      });
-    },
-  });
-
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
 
   const handleSearch = (newSearch: string) => {
     setSearch(newSearch);
@@ -53,11 +39,13 @@ export default function App() {
     <div className={css.app}>
       <header className={css.toolbar}>
         <SearchBox onSubmit={handleSearch} />
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
         <button
           className={css.button}
           onClick={handleOpenModal}
@@ -69,12 +57,7 @@ export default function App() {
       {isLoading && <p>Loading data, please wait...</p>}
       {isError && <p>Whoops, something went wrong! Please try again</p>}
 
-      {notes.length > 0 && (
-        <NoteList
-          notes={notes}
-          onDelete={handleDelete}
-        />
-      )}
+      {notes.length > 0 && <NoteList notes={notes} />}
 
       {isModalOpen && (
         <Modal onClose={handleCloseModal}>
